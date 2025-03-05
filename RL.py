@@ -1,0 +1,158 @@
+import gym
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+from gym import spaces
+import torch.nn.functional as F
+import torch.distributions as distributions
+
+'''
+RL set up
+'''
+class RobotTrajectoryEnv(gym.Env):
+    def __init__(self, predictor_model, start_pos, end_pos, max_steps=50):
+        super(RobotTrajectoryEnv, self).__init__()
+
+        self.predictor_model = predictor_model  # Your existing model
+        self.start_pos = np.array(start_pos)  # (x_start, y_start)
+        self.end_pos = np.array(end_pos)  # (x_end, y_end)
+        self.state = None  # (x, y, prev_x, prev_y, theta1, theta2, theta3)
+        self.max_steps = max_steps
+        self.current_step = 0
+
+        # Action space now modifies x, y (small changes)
+        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
+
+        # Observation space remains the same
+        self.observation_space = spaces.Box(
+            low=np.array([-3, -3, -3, -3, -np.pi, -np.pi, -np.pi]),  # Min values
+            high=np.array([3, 3, 3, 3, np.pi, np.pi, np.pi]),        # Max values
+            dtype=np.float32
+        )
+
+    def reset(self):
+        """Reset the environment to the initial state."""
+        self.current_step = 0
+
+        # Initial joint angles are predicted by the model
+        input_tensor = torch.tensor([self.start_pos.tolist() + self.start_pos.tolist() + [0, 0, 0]], dtype=torch.float32)
+        theta1, theta2, theta3 = self.predictor_model(input_tensor).detach().numpy().squeeze()
+
+        self.state = np.concatenate([self.start_pos, self.start_pos, [theta1, theta2, theta3]])  
+        return self.state
+
+    def step(self, action):
+        """Apply an action by moving (x, y) and predict the new joint angles."""
+        self.current_step += 1
+        prev_state = self.state.copy()
+
+        # Update x, y with small changes
+        new_x = np.clip(prev_state[0] + action[0], -3, 3)
+        new_y = np.clip(prev_state[1] + action[1], -3, 3)
+
+        # Predict new thetas using the existing model
+        input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0)
+        new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().numpy().squeeze()
+
+        # Compute reward
+        dist_to_goal = np.linalg.norm([new_x, new_y] - self.end_pos)
+        prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
+
+        reward = (prev_dist - dist_to_goal)  # Reward for getting closer
+        # Penalize large joint angle changes (minimizing θ changes for smoother motion)
+        theta_change = np.linalg.norm([
+            new_theta1 - prev_state[4],
+            new_theta2 - prev_state[5],
+            new_theta3 - prev_state[6]
+        ])
+        penalty = theta_change * 0.1  # Penalize large position shifts
+        # 0.1 is a hyperparam set by Yike
+        reward -= penalty   # Weight for smooth motion
+
+        # Update state
+        self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
+
+        done = (dist_to_goal < 0.01) or (self.current_step >= self.max_steps)  # Stop when reaching goal
+
+        return self.state, reward, done, {}
+
+    def render(self, mode="human"):
+        pass  # Visualization can be added if needed
+
+
+class LSTMPPOPolicy(nn.Module):
+    def __init__(self, input_size=7, hidden_size=128, output_size=3):
+        super(LSTMPPOPolicy, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output
+        self.fc_critic = nn.Linear(hidden_size, 1)  # Value function for advantage estimation
+
+    def forward(self, x, hidden):
+        lstm_out, hidden = self.lstm(x.unsqueeze(0), hidden)
+        action_mean = self.fc_actor(lstm_out[:, -1, :])  # Output last time step
+        value = self.fc_critic(lstm_out[:, -1, :])
+        return action_mean, value, hidden
+
+    def init_hidden(self):
+        return (torch.zeros(1, 1, 128), torch.zeros(1, 1, 128))
+
+
+def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003):
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    hidden_state = model.init_hidden()
+
+    all_trajectories = []  # Store all trajectories
+
+    for episode in range(num_episodes):
+        state = torch.tensor(env.reset(), dtype=torch.float32).unsqueeze(0)
+        log_probs, rewards, values = [], [], []
+        trajectory = []  # Store (theta1, theta2, theta3) per step
+        done = False
+
+        while not done:
+            action_mean, value, hidden_state = model(state.unsqueeze(0), hidden_state)
+            action_dist = distributions.Normal(action_mean, torch.tensor([0.1, 0.1]))  # Gaussian exploration for (delta_x, delta_y)
+            action = action_dist.sample()
+            log_prob = action_dist.log_prob(action).sum()
+
+            new_state, reward, done, _ = env.step(action.detach().numpy())
+
+            # Extract theta1, theta2, theta3 from the state and store in trajectory
+            theta1, theta2, theta3 = new_state[4], new_state[5], new_state[6]
+            trajectory.append((theta1, theta2, theta3))
+
+            log_probs.append(log_prob)
+            values.append(value)
+            rewards.append(reward)
+
+            state = torch.tensor(new_state, dtype=torch.float32).unsqueeze(0)
+
+        all_trajectories.append(trajectory)  # Store full trajectory
+
+        # Compute discounted rewards
+        discounted_rewards = []
+        R = 0
+        for r in reversed(rewards):
+            R = r + gamma * R
+            discounted_rewards.insert(0, R)
+
+        discounted_rewards = torch.tensor(discounted_rewards)
+        values = torch.cat(values)
+        log_probs = torch.cat(log_probs)
+
+        advantage = discounted_rewards - values.detach()
+
+        # Loss function
+        actor_loss = -(log_probs * advantage).mean()
+        critic_loss = F.mse_loss(values, discounted_rewards)
+        loss = actor_loss + 0.5 * critic_loss  # Weighted sum
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if episode % 50 == 0:
+            print(f"Episode {episode}, Reward: {sum(rewards)}")
+
+    return all_trajectories  # Return all joint angle sequences over episodes
