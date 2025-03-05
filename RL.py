@@ -11,11 +11,12 @@ import torch.distributions as distributions
 RL set up
 '''
 class RobotTrajectoryEnv(gym.Env):
-    def __init__(self, predictor_model, start_pos, end_pos, max_steps=50):
+    def __init__(self, predictor_model, start_pos, start_thetas, end_pos, max_steps=50):
         super(RobotTrajectoryEnv, self).__init__()
 
         self.predictor_model = predictor_model  # Your existing model
         self.start_pos = np.array(start_pos)  # (x_start, y_start)
+        self.start_thetas = np.array(start_thetas)  # (theta1_start, theta2_start, theta3_start)
         self.end_pos = np.array(end_pos)  # (x_end, y_end)
         self.state = None  # (x, y, prev_x, prev_y, theta1, theta2, theta3)
         self.max_steps = max_steps
@@ -24,7 +25,7 @@ class RobotTrajectoryEnv(gym.Env):
         # Action space now modifies x, y (small changes)
         self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
 
-        # Observation space remains the same
+        # Observation space includes theta1, theta2, theta3 from the start
         self.observation_space = spaces.Box(
             low=np.array([-3, -3, -3, -3, -np.pi, -np.pi, -np.pi]),  # Min values
             high=np.array([3, 3, 3, 3, np.pi, np.pi, np.pi]),        # Max values
@@ -35,11 +36,8 @@ class RobotTrajectoryEnv(gym.Env):
         """Reset the environment to the initial state."""
         self.current_step = 0
 
-        # Initial joint angles are predicted by the model
-        input_tensor = torch.tensor([self.start_pos.tolist() + self.start_pos.tolist() + [0, 0, 0]], dtype=torch.float32)
-        theta1, theta2, theta3 = self.predictor_model(input_tensor).detach().numpy().squeeze()
-
-        self.state = np.concatenate([self.start_pos, self.start_pos, [theta1, theta2, theta3]])  
+        # Directly use the provided initial thetas instead of predicting them
+        self.state = np.concatenate([self.start_pos, self.start_pos, self.start_thetas])
         return self.state
 
     def step(self, action):
@@ -48,10 +46,11 @@ class RobotTrajectoryEnv(gym.Env):
         prev_state = self.state.copy()
 
         # Update x, y with small changes
-        new_x = np.clip(prev_state[0] + action[0], -3, 3)
-        new_y = np.clip(prev_state[1] + action[1], -3, 3)
+        #print(action)
+        new_x = np.clip(prev_state[0] + action[0][0], -3, 3)
+        new_y = np.clip(prev_state[1] + action[0][1], -3, 3)
 
-        # Predict new thetas using the existing model
+        # Predict new joint angles using the existing model
         input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0)
         new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().numpy().squeeze()
 
@@ -60,15 +59,15 @@ class RobotTrajectoryEnv(gym.Env):
         prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
 
         reward = (prev_dist - dist_to_goal)  # Reward for getting closer
+
         # Penalize large joint angle changes (minimizing θ changes for smoother motion)
         theta_change = np.linalg.norm([
             new_theta1 - prev_state[4],
             new_theta2 - prev_state[5],
             new_theta3 - prev_state[6]
         ])
-        penalty = theta_change * 0.1  # Penalize large position shifts
-        # 0.1 is a hyperparam set by Yike
-        reward -= penalty   # Weight for smooth motion
+        penalty = theta_change * 0.1  # Penalize large theta changes
+        reward -= penalty  # Weight for smooth motion
 
         # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
@@ -82,21 +81,20 @@ class RobotTrajectoryEnv(gym.Env):
 
 
 class LSTMPPOPolicy(nn.Module):
-    def __init__(self, input_size=7, hidden_size=128, output_size=3):
+    def __init__(self, input_size=7, hidden_size=128, output_size=2):  # Output is (delta_x, delta_y)
         super(LSTMPPOPolicy, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output
+        self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output (delta_x, delta_y)
         self.fc_critic = nn.Linear(hidden_size, 1)  # Value function for advantage estimation
 
     def forward(self, x, hidden):
-        lstm_out, hidden = self.lstm(x.unsqueeze(0), hidden)
+        lstm_out, hidden = self.lstm(x, hidden)
         action_mean = self.fc_actor(lstm_out[:, -1, :])  # Output last time step
         value = self.fc_critic(lstm_out[:, -1, :])
         return action_mean, value, hidden
 
     def init_hidden(self):
         return (torch.zeros(1, 1, 128), torch.zeros(1, 1, 128))
-
 
 def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003):
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -111,7 +109,9 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003):
         done = False
 
         while not done:
-            action_mean, value, hidden_state = model(state.unsqueeze(0), hidden_state)
+            if state.dim() == 2:  
+                state = state.unsqueeze(0)
+            action_mean, value, hidden_state = model(state, hidden_state)
             action_dist = distributions.Normal(action_mean, torch.tensor([0.1, 0.1]))  # Gaussian exploration for (delta_x, delta_y)
             action = action_dist.sample()
             log_prob = action_dist.log_prob(action).sum()
