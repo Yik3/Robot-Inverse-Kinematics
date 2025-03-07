@@ -11,7 +11,7 @@ import torch.distributions as distributions
 RL set up
 '''
 class RobotTrajectoryEnv(gym.Env):
-    def __init__(self, predictor_model, start_pos, start_thetas, end_pos, max_steps=50):
+    def __init__(self, predictor_model, start_pos, start_thetas, end_pos, device,max_steps=50):
         super(RobotTrajectoryEnv, self).__init__()
 
         self.predictor_model = predictor_model  # Your existing model
@@ -21,7 +21,7 @@ class RobotTrajectoryEnv(gym.Env):
         self.state = None  # (x, y, prev_x, prev_y, theta1, theta2, theta3)
         self.max_steps = max_steps
         self.current_step = 0
-
+        self.device = device
         # Action space now modifies x, y (small changes)
         self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
 
@@ -45,22 +45,23 @@ class RobotTrajectoryEnv(gym.Env):
         self.current_step += 1
         prev_state = self.state.copy()
 
-        # Update x, y with small changes
-        #print(action)
+    # Update x, y with small changes
         new_x = np.clip(prev_state[0] + action[0][0], -3, 3)
         new_y = np.clip(prev_state[1] + action[0][1], -3, 3)
 
-        # Predict new joint angles using the existing model
-        input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0)
-        new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().numpy().squeeze()
+    # Move input tensor to the same device as predictor_model
+        input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0).to(self.device)
+    
+    # Ensure predictor model is on CUDA
+        new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().cpu().numpy().squeeze()
 
-        # Compute reward
+    # Compute reward
         dist_to_goal = np.linalg.norm([new_x, new_y] - self.end_pos)
         prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
 
-        reward = (prev_dist - dist_to_goal)  # Reward for getting closer
+        reward = (prev_dist - dist_to_goal) * 1.5  # Reward for getting closer
 
-        # Penalize large joint angle changes (minimizing θ changes for smoother motion)
+    # Penalize large joint angle changes (minimizing θ changes for smoother motion)
         theta_change = np.linalg.norm([
             new_theta1 - prev_state[4],
             new_theta2 - prev_state[5],
@@ -69,12 +70,13 @@ class RobotTrajectoryEnv(gym.Env):
         penalty = theta_change * 0.1  # Penalize large theta changes
         reward -= penalty  # Weight for smooth motion
 
-        # Update state
+    # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
 
         done = (dist_to_goal < 0.01) or (self.current_step >= self.max_steps)  # Stop when reaching goal
 
         return self.state, reward, done, {}
+
 
     def render(self, mode="human"):
         pass  # Visualization can be added if needed
@@ -96,56 +98,64 @@ class LSTMPPOPolicy(nn.Module):
     def init_hidden(self):
         return (torch.zeros(1, 1, 128), torch.zeros(1, 1, 128))
 
-def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003):
+def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003, device="cuda"):
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    hidden_state = model.init_hidden()
+    model.to(device)  # Move model to CUDA
+    hidden_state = (torch.zeros(1, 1, 128).to(device), torch.zeros(1, 1, 128).to(device))  # Ensure hidden state is on GPU
 
     all_trajectories = []  # Store all trajectories
 
     for episode in range(num_episodes):
-        state = torch.tensor(env.reset(), dtype=torch.float32).unsqueeze(0)
+        state = torch.tensor(env.reset(), dtype=torch.float32).unsqueeze(0).to(device)  # Move state to GPU
         log_probs, rewards, values = [], [], []
         trajectory = []  # Store (theta1, theta2, theta3) per step
         done = False
 
         while not done:
-            if state.dim() == 2:  
-                state = state.unsqueeze(0)
+            '''
+            if state.dim() == 2:
+                state = state.unsqueeze(0)  # Ensure batch size for LSTM
+            '''
             action_mean, value, hidden_state = model(state, hidden_state)
-            action_dist = distributions.Normal(action_mean, torch.tensor([0.1, 0.1]))  # Gaussian exploration for (delta_x, delta_y)
+            action_dist = distributions.Normal(action_mean, torch.tensor([0.1, 0.1]).to(device))  # Move to GPU
             action = action_dist.sample()
             log_prob = action_dist.log_prob(action).sum()
 
-            new_state, reward, done, _ = env.step(action.detach().numpy())
+            new_state, reward, done, _ = env.step(action.detach().cpu().numpy())  # Move action to CPU before passing to env
 
-            # Extract theta1, theta2, theta3 from the state and store in trajectory
+            # Store log_prob with batch dimension (Fixes concatenation issue)
+            log_probs.append(log_prob.unsqueeze(0))  # Ensures shape (1,)
+
+            values.append(value)  # Ensure values is a list of tensors
+            rewards.append(reward)
+
+            # Extract theta1, theta2, theta3 and store in trajectory
             theta1, theta2, theta3 = new_state[4], new_state[5], new_state[6]
             trajectory.append((theta1, theta2, theta3))
 
-            log_probs.append(log_prob)
-            values.append(value)
-            rewards.append(reward)
-
-            state = torch.tensor(new_state, dtype=torch.float32).unsqueeze(0)
+            state = torch.tensor(new_state, dtype=torch.float32).unsqueeze(0).to(device)  # Move to GPU
 
         all_trajectories.append(trajectory)  # Store full trajectory
 
-        # Compute discounted rewards
+        # Convert rewards to a tensor and ensure correct dtype
         discounted_rewards = []
         R = 0
         for r in reversed(rewards):
             R = r + gamma * R
             discounted_rewards.insert(0, R)
 
-        discounted_rewards = torch.tensor(discounted_rewards)
-        values = torch.cat(values)
-        log_probs = torch.cat(log_probs)
+        discounted_rewards = torch.tensor(discounted_rewards, dtype=torch.float32).to(device)  # Convert to float32
 
-        advantage = discounted_rewards - values.detach()
+        # Convert log_probs and values to tensors correctly
+        log_probs = torch.cat(log_probs)  # No more dimension mismatch
+        values = torch.cat(values).view(-1, 1)  # Ensure values has correct shape
+
+        # FIX: Compute advantage properly without breaking the graph
+        advantage = discounted_rewards - values.detach()  # FIXED  # Detach to avoid second backward pass
 
         # Loss function
         actor_loss = -(log_probs * advantage).mean()
-        critic_loss = F.mse_loss(values, discounted_rewards)
+        critic_loss = F.mse_loss(values, discounted_rewards.view(-1, 1))  # Ensure matching shapes
         loss = actor_loss + 0.5 * critic_loss  # Weighted sum
 
         optimizer.zero_grad()
