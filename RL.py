@@ -27,8 +27,8 @@ class RobotTrajectoryEnv(gym.Env):
 
         # Observation space includes theta1, theta2, theta3 from the start
         self.observation_space = spaces.Box(
-            low=np.array([-3, -3, -3, -3, -np.pi, -np.pi, -np.pi]),  # Min values
-            high=np.array([3, 3, 3, 3, np.pi, np.pi, np.pi]),        # Max values
+            low=np.array([-3, -3, -3, -3, -1, -1, -1]),  # Min values
+            high=np.array([3, 3, 3, 3, 1, 1, 1]),        # Max values
             dtype=np.float32
         )
 
@@ -59,7 +59,7 @@ class RobotTrajectoryEnv(gym.Env):
         dist_to_goal = np.linalg.norm([new_x, new_y] - self.end_pos)
         prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
 
-        reward = (prev_dist - dist_to_goal) * 1.5  # Reward for getting closer
+        reward = (prev_dist - dist_to_goal) * 2.9  # Reward for getting closer
 
     # Penalize large joint angle changes (minimizing θ changes for smoother motion)
         theta_change = np.linalg.norm([
@@ -67,7 +67,8 @@ class RobotTrajectoryEnv(gym.Env):
             new_theta2 - prev_state[5],
             new_theta3 - prev_state[6]
         ])
-        penalty = theta_change * 0.1  # Penalize large theta changes
+        penalty = theta_change * 0.04  # Penalize large theta changes
+        #penalty += dist_to_goal * 2 # I add this, but it may not make sense
         reward -= penalty  # Weight for smooth motion
 
     # Update state
@@ -83,7 +84,7 @@ class RobotTrajectoryEnv(gym.Env):
 
 
 class LSTMPPOPolicy(nn.Module):
-    def __init__(self, input_size=7, hidden_size=128, output_size=2):  # Output is (delta_x, delta_y)
+    def __init__(self, input_size=7, hidden_size=2048, output_size=2):  # Output is (delta_x, delta_y)
         super(LSTMPPOPolicy, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output (delta_x, delta_y)
@@ -96,9 +97,42 @@ class LSTMPPOPolicy(nn.Module):
         return action_mean, value, hidden
 
     def init_hidden(self):
-        return (torch.zeros(1, 1, 128), torch.zeros(1, 1, 128))
+        return (torch.zeros(1, 1, 2048), torch.zeros(1, 1, 2048))
 
-def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003, device="cuda"):
+# I did not use it RN!!!
+class EnhancedLSTMPPO(nn.Module):
+    def __init__(self, input_size=7, hidden_size=256, num_layers=2):
+        super().__init__()
+        # 双向LSTM捕获双向依赖
+        self.lstm = nn.LSTM(
+            input_size, 
+            hidden_size,
+            num_layers=num_layers,
+            bidirectional=True,
+            dropout=0.2 if num_layers>1 else 0
+        )
+        # 自适应特征融合
+        self.attention = nn.Sequential(
+            nn.Linear(2*hidden_size, 64),
+            nn.Tanh(),
+            nn.Linear(64, 1),
+            nn.Softmax(dim=1)
+        )
+        # 多尺度输出
+        self.actor_head = nn.Linear(2*hidden_size, 2)
+        self.critic_head = nn.Linear(2*hidden_size, 1)
+        
+    def forward(self, x, hidden):
+        lstm_out, hidden = self.lstm(x, hidden)
+        # 时域注意力
+        attn_weights = self.attention(lstm_out)
+        context = torch.sum(attn_weights * lstm_out, dim=1)
+        # 双头输出
+        mean = self.actor_head(context)
+        value = self.critic_head(context)
+        return mean, value, hidden
+
+def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda"):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)
     all_trajectories = []
@@ -106,8 +140,8 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003, device="cuda"
     for episode in range(num_episodes):
         # Initialize hidden state at the start of each episode
         hidden_state = (
-            torch.zeros(1, 1, 128).to(device),
-            torch.zeros(1, 1, 128).to(device)
+            torch.zeros(1, 1, 2048).to(device),
+            torch.zeros(1, 1, 2048).to(device)
         )
         
         # Reset environment and get initial state
@@ -172,7 +206,63 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.0003, device="cuda"
         loss.backward()
         optimizer.step()
 
-        if episode % 50 == 0:
+        if episode % 25 == 0:
             print(f"Episode {episode}, Total Reward: {sum(rewards)}, Loss: {loss.item()}")
 
     return all_trajectories
+
+def generate_trajectory(
+    lstm_policy,  # 训练好的LSTM策略网络
+    predictor_model,  # 你的ResNetFCN预测模型
+    start_pos,  # 初始位置 (x, y)
+    start_thetas,  # 初始关节角度 (theta1, theta2, theta3)
+    end_pos,  # 目标位置 (x, y)
+    device,
+    max_steps=100
+):
+    # 初始化环境
+    env = RobotTrajectoryEnv(
+        predictor_model,
+        start_pos=start_pos,
+        start_thetas=start_thetas,
+        end_pos=end_pos,
+        device=device,
+        max_steps=max_steps
+    )
+    
+    # 初始化LSTM隐藏状态
+    hidden_state = (
+        torch.zeros(1, 1, 128).to(device),
+        torch.zeros(1, 1, 128).to(device)
+    )
+    
+    state = env.reset()
+    trajectory = [start_thetas]  # 初始角度
+    
+    # 转换为张量并添加batch和sequence维度
+    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
+    
+    done = False
+    step = 0
+    
+    with torch.no_grad():  # 禁用梯度计算
+        while not done and step < max_steps:
+            # 通过LSTM策略生成动作
+            action_mean, _, hidden_state = lstm_policy(state_tensor, hidden_state)
+            
+            # 从正态分布采样动作（测试时可以直接使用均值）
+            action = action_mean.squeeze().cpu().numpy()
+            
+            # 执行动作
+            new_state, _, done, _ = env.step(action)
+            
+            # 记录新的关节角度
+            new_thetas = (new_state[4], new_state[5], new_state[6])
+            trajectory.append(new_thetas)
+            
+            # 更新状态张量
+            state_tensor = torch.tensor(new_state, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
+            
+            step += 1
+    
+    return trajectory

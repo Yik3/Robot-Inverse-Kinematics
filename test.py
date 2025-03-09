@@ -2,106 +2,46 @@ from traj_vis import *
 
 data_str = """
 Step 0: Theta1=0.000, Theta2=0.000, Theta3=0.000
-Step 1: Theta1=0.016, Theta2=0.023, Theta3=-0.001
-Step 2: Theta1=0.007, Theta2=0.025, Theta3=-0.016
-Step 3: Theta1=-0.007, Theta2=0.026, Theta3=-0.016
-Step 4: Theta1=-0.040, Theta2=-0.009, Theta3=-0.036
-Step 5: Theta1=-0.031, Theta2=0.001, Theta3=-0.015
-Step 6: Theta1=0.002, Theta2=0.040, Theta3=0.023
-Step 7: Theta1=-0.002, Theta2=0.046, Theta3=0.039
-Step 8: Theta1=-0.023, Theta2=0.041, Theta3=0.043
-Step 9: Theta1=-0.029, Theta2=0.039, Theta3=0.049
-Step 10: Theta1=-0.061, Theta2=0.051, Theta3=0.053
-Step 11: Theta1=-0.096, Theta2=0.003, Theta3=0.007
-Step 12: Theta1=-0.101, Theta2=0.038, Theta3=0.041
-Step 13: Theta1=-0.105, Theta2=0.082, Theta3=0.091
-Step 14: Theta1=-0.109, Theta2=0.069, Theta3=0.065
-Step 15: Theta1=-0.080, Theta2=-0.014, Theta3=-0.016
-Step 16: Theta1=-0.069, Theta2=0.025, Theta3=0.033
-Step 17: Theta1=-0.063, Theta2=0.055, Theta3=0.079
-Step 18: Theta1=-0.079, Theta2=0.083, Theta3=0.116
-Step 19: Theta1=-0.083, Theta2=0.085, Theta3=0.108
-Step 20: Theta1=-0.086, Theta2=0.089, Theta3=0.128
-Step 21: Theta1=-0.100, Theta2=0.080, Theta3=0.101
-Step 22: Theta1=-0.099, Theta2=0.094, Theta3=0.115
-Step 23: Theta1=-0.084, Theta2=0.044, Theta3=0.050
-Step 24: Theta1=-0.089, Theta2=0.064, Theta3=0.074
-Step 25: Theta1=-0.076, Theta2=0.073, Theta3=0.089
-Step 26: Theta1=-0.092, Theta2=0.102, Theta3=0.131
-Step 27: Theta1=-0.127, Theta2=0.074, Theta3=0.088
-Step 28: Theta1=-0.125, Theta2=0.097, Theta3=0.109
-Step 29: Theta1=-0.124, Theta2=0.110, Theta3=0.120
-Step 30: Theta1=-0.127, Theta2=0.064, Theta3=0.067
-Step 31: Theta1=-0.114, Theta2=0.096, Theta3=0.098
-Step 32: Theta1=-0.100, Theta2=0.076, Theta3=0.079
-Step 33: Theta1=-0.048, Theta2=0.024, Theta3=0.020
-Step 34: Theta1=-0.047, Theta2=0.048, Theta3=0.048
-Step 35: Theta1=-0.059, Theta2=0.066, Theta3=0.072
-Step 36: Theta1=-0.077, Theta2=0.091, Theta3=0.108
-Step 37: Theta1=-0.092, Theta2=0.099, Theta3=0.116
-Step 38: Theta1=-0.117, Theta2=0.067, Theta3=0.072
-Step 39: Theta1=-0.120, Theta2=0.093, Theta3=0.103
-Step 40: Theta1=-0.130, Theta2=0.039, Theta3=0.031
-Step 41: Theta1=-0.141, Theta2=0.055, Theta3=0.054
-Step 42: Theta1=-0.129, Theta2=0.056, Theta3=0.063
-Step 43: Theta1=-0.105, Theta2=0.089, Theta3=0.123
-Step 44: Theta1=-0.103, Theta2=0.120, Theta3=0.161
-Step 45: Theta1=-0.111, Theta2=0.159, Theta3=0.188
-Step 46: Theta1=-0.154, Theta2=0.097, Theta3=0.098
-Step 47: Theta1=-0.166, Theta2=0.131, Theta3=0.132
-Step 48: Theta1=-0.171, Theta2=0.131, Theta3=0.132
-Step 49: Theta1=-0.174, Theta2=0.073, Theta3=0.075
-Step 50: Theta1=-0.144, Theta2=0.104, Theta3=0.115
-Step 51: Theta1=-0.133, Theta2=0.088, Theta3=0.094
-Step 52: Theta1=-0.117, Theta2=0.124, Theta3=0.149
-Step 53: Theta1=-0.145, Theta2=0.105, Theta3=0.113
-Step 54: Theta1=-0.150, Theta2=0.070, Theta3=0.081
-Step 55: Theta1=-0.127, Theta2=0.090, Theta3=0.103
-Step 56: Theta1=-0.132, Theta2=0.100, Theta3=0.110
-Step 57: Theta1=-0.131, Theta2=0.061, Theta3=0.078
-Step 58: Theta1=-0.107, Theta2=0.076, Theta3=0.095
-Step 59: Theta1=-0.087, Theta2=0.065, Theta3=0.081
-Step 60: Theta1=-0.047, Theta2=0.068, Theta3=0.075
-Step 61: Theta1=-0.046, Theta2=0.078, Theta3=0.091
-Step 62: Theta1=-0.083, Theta2=0.068, Theta3=0.072
-Step 63: Theta1=-0.104, Theta2=0.082, Theta3=0.089
-Step 64: Theta1=-0.106, Theta2=0.083, Theta3=0.091
-Step 65: Theta1=-0.080, Theta2=0.054, Theta3=0.062
-Step 66: Theta1=-0.077, Theta2=0.064, Theta3=0.090
-Step 67: Theta1=-0.069, Theta2=0.078, Theta3=0.100
-Step 68: Theta1=-0.083, Theta2=0.114, Theta3=0.137
-Step 69: Theta1=-0.074, Theta2=0.055, Theta3=0.068
-Step 70: Theta1=-0.071, Theta2=0.070, Theta3=0.085
-Step 71: Theta1=-0.081, Theta2=0.084, Theta3=0.102
-Step 72: Theta1=-0.074, Theta2=0.056, Theta3=0.058
-Step 73: Theta1=-0.078, Theta2=0.071, Theta3=0.075
-Step 74: Theta1=-0.112, Theta2=0.078, Theta3=0.083
-Step 75: Theta1=-0.101, Theta2=0.136, Theta3=0.181
-Step 76: Theta1=-0.122, Theta2=0.219, Theta3=0.263
-Step 77: Theta1=-0.180, Theta2=0.229, Theta3=0.240
-Step 78: Theta1=-0.153, Theta2=0.283, Theta3=0.291
-Step 79: Theta1=-0.217, Theta2=0.197, Theta3=0.188
-Step 80: Theta1=-0.195, Theta2=0.151, Theta3=0.147
-Step 81: Theta1=-0.133, Theta2=0.086, Theta3=0.095
-Step 82: Theta1=-0.108, Theta2=0.080, Theta3=0.100
-Step 83: Theta1=-0.095, Theta2=0.083, Theta3=0.098
-Step 84: Theta1=-0.087, Theta2=0.060, Theta3=0.077
-Step 85: Theta1=-0.060, Theta2=0.054, Theta3=0.067
-Step 86: Theta1=-0.011, Theta2=0.059, Theta3=0.067
-Step 87: Theta1=-0.021, Theta2=0.050, Theta3=0.063
-Step 88: Theta1=-0.052, Theta2=0.047, Theta3=0.065
-Step 89: Theta1=-0.046, Theta2=0.061, Theta3=0.070
-Step 90: Theta1=-0.074, Theta2=0.082, Theta3=0.091
-Step 91: Theta1=-0.071, Theta2=0.063, Theta3=0.068
-Step 92: Theta1=-0.076, Theta2=0.071, Theta3=0.079
-Step 93: Theta1=-0.078, Theta2=0.072, Theta3=0.080
-Step 94: Theta1=-0.081, Theta2=0.060, Theta3=0.068
-Step 95: Theta1=-0.075, Theta2=0.056, Theta3=0.074
-Step 96: Theta1=-0.076, Theta2=0.049, Theta3=0.062
-Step 97: Theta1=-0.079, Theta2=0.060, Theta3=0.069
-Step 98: Theta1=-0.088, Theta2=0.052, Theta3=0.070
-Step 99: Theta1=-0.091, Theta2=0.061, Theta3=0.075
-Step 100: Theta1=-0.084, Theta2=0.048, Theta3=0.053
+Step 1: Theta1=0.013, Theta2=0.020, Theta3=-0.004
+Step 2: Theta1=0.013, Theta2=0.033, Theta3=-0.009
+Step 3: Theta1=-0.004, Theta2=0.029, Theta3=-0.009
+Step 4: Theta1=-0.057, Theta2=-0.025, Theta3=-0.043
+Step 5: Theta1=-0.099, Theta2=-0.084, Theta3=-0.075
+Step 6: Theta1=-0.126, Theta2=-0.127, Theta3=-0.082
+Step 7: Theta1=-0.128, Theta2=-0.083, Theta3=0.056
+Step 8: Theta1=-0.044, Theta2=0.167, Theta3=0.397
+Step 9: Theta1=0.164, Theta2=0.487, Theta3=0.687
+Step 10: Theta1=-0.024, Theta2=0.574, Theta3=0.680
+Step 11: Theta1=-0.366, Theta2=0.587, Theta3=0.545
+Step 12: Theta1=-0.225, Theta2=0.779, Theta3=0.690
+Step 13: Theta1=-0.169, Theta2=0.828, Theta3=0.732
+Step 14: Theta1=-0.148, Theta2=0.839, Theta3=0.743
+Step 15: Theta1=-0.140, Theta2=0.842, Theta3=0.746
+Step 16: Theta1=-0.137, Theta2=0.843, Theta3=0.746
+Step 17: Theta1=-0.136, Theta2=0.843, Theta3=0.746
+Step 18: Theta1=-0.136, Theta2=0.843, Theta3=0.746
+Step 19: Theta1=-0.503, Theta2=0.716, Theta3=0.497
+Step 20: Theta1=-0.367, Theta2=0.769, Theta3=0.633
+Step 21: Theta1=-0.164, Theta2=0.832, Theta3=0.756
+Step 22: Theta1=-0.158, Theta2=0.839, Theta3=0.756
+Step 23: Theta1=-0.062, Theta2=0.858, Theta3=0.790
+Step 24: Theta1=-0.095, Theta2=0.852, Theta3=0.769
+Step 25: Theta1=-0.533, Theta2=0.698, Theta3=0.470
+Step 26: Theta1=-0.429, Theta2=0.745, Theta3=0.596
+Step 27: Theta1=-0.476, Theta2=0.734, Theta3=0.583
+Step 28: Theta1=-0.099, Theta2=0.842, Theta3=0.793
+Step 29: Theta1=-0.262, Theta2=0.815, Theta3=0.715
+Step 30: Theta1=-0.084, Theta2=0.854, Theta3=0.798
+Step 31: Theta1=-0.230, Theta2=0.824, Theta3=0.727
+Step 32: Theta1=-0.511, Theta2=0.723, Theta3=0.544
+Step 33: Theta1=-0.435, Theta2=0.751, Theta3=0.623
+Step 34: Theta1=-0.296, Theta2=0.802, Theta3=0.720
+Step 35: Theta1=-0.608, Theta2=0.664, Theta3=0.467
+Step 36: Theta1=-0.734, Theta2=0.527, Theta3=0.264
+Step 37: Theta1=-0.422, Theta2=0.723, Theta3=0.621
+Step 38: Theta1=-0.445, Theta2=0.754, Theta3=0.657
+Step 39: Theta1=-0.795, Theta2=0.437, Theta3=0.162
+Step 40: Theta1=-0.175, Theta2=0.781, Theta3=0.750
 """
 
 # 数据转换函数
@@ -132,7 +72,7 @@ def parse_angle_data(data_string):
 
 # 执行转换
 theta_sequence = parse_angle_data(data_str)
-print(theta_sequence[99])
+print(theta_sequence[-1])
 
 test_angles = theta_sequence
     
