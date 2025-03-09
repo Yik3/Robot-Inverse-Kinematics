@@ -1,9 +1,9 @@
-import gym
+import gymnasium as gym
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 import torch.nn.functional as F
 import torch.distributions as distributions
 
