@@ -76,7 +76,7 @@ class RobotTrajectoryEnv(gym.Env):
     # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
 
-        done = (dist_to_goal < 0.01) or (self.current_step >= self.max_steps)  # Stop when reaching goal
+        done = (dist_to_goal < 0.05) or (self.current_step >= self.max_steps)  # Stop when reaching goal
 
         return self.state, reward, done, {}
 
@@ -100,7 +100,7 @@ class LSTMPPOPolicy(nn.Module):
 
     def init_hidden(self):
         return (torch.zeros(1, 1, 2048), torch.zeros(1, 1, 2048))
-
+'''
 # I did not use it RN!!!
 class EnhancedLSTMPPO(nn.Module):
     def __init__(self, input_size=7, hidden_size=256, num_layers=2):
@@ -133,7 +133,6 @@ class EnhancedLSTMPPO(nn.Module):
         mean = self.actor_head(context)
         value = self.critic_head(context)
         return mean, value, hidden
-
 def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda"):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)

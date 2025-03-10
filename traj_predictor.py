@@ -32,7 +32,7 @@ def predict_first_point(x,y,model):
 
 model = LSTMPPOPolicy().to(device)
 model_1 = EnhancedLSTMPPO().to(device)
-env = RobotTrajectoryEnv(model_pred, (3, 0),(0,0,0),(-3,0),device,max_steps=40)
+env = RobotTrajectoryEnv(model_pred, (3, 0),(0,0,0),(0,3),device,max_steps=30)
 print(device)
 trajectories = train_rl(model, env,device=device,num_episodes=400)
 

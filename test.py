@@ -2,14 +2,14 @@ from traj_vis import *
 
 data_str = """
 Step 0: Theta1=0.000, Theta2=0.000, Theta3=0.000
-Step 1: Theta1=-0.008, Theta2=-0.005, Theta3=-0.007
-Step 2: Theta1=-0.085, Theta2=-0.056, Theta3=-0.078
-Step 3: Theta1=0.290, Theta2=0.681, Theta3=0.337
-Step 4: Theta1=0.922, Theta2=0.837, Theta3=0.786
-Step 5: Theta1=0.991, Theta2=0.976, Theta3=0.957
-Step 6: Theta1=0.996, Theta2=0.988, Theta3=0.978
-Step 7: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 8: Theta1=0.996, Theta2=0.989, Theta3=0.980
+Step 1: Theta1=-0.008, Theta2=-0.005, Theta3=-0.006
+Step 2: Theta1=-0.039, Theta2=-0.031, Theta3=-0.038
+Step 3: Theta1=-0.133, Theta2=-0.078, Theta3=-0.122
+Step 4: Theta1=-0.136, Theta2=-0.017, Theta3=-0.134
+Step 5: Theta1=0.311, Theta2=0.421, Theta3=0.196
+Step 6: Theta1=0.868, Theta2=0.755, Theta3=0.702
+Step 7: Theta1=0.987, Theta2=0.964, Theta3=0.939
+Step 8: Theta1=0.996, Theta2=0.988, Theta3=0.977
 Step 9: Theta1=0.996, Theta2=0.989, Theta3=0.980
 Step 10: Theta1=0.996, Theta2=0.989, Theta3=0.980
 Step 11: Theta1=0.996, Theta2=0.989, Theta3=0.980
@@ -32,16 +32,6 @@ Step 27: Theta1=0.996, Theta2=0.989, Theta3=0.980
 Step 28: Theta1=0.996, Theta2=0.989, Theta3=0.980
 Step 29: Theta1=0.996, Theta2=0.989, Theta3=0.980
 Step 30: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 31: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 32: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 33: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 34: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 35: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 36: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 37: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 38: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 39: Theta1=0.996, Theta2=0.989, Theta3=0.980
-Step 40: Theta1=0.996, Theta2=0.989, Theta3=0.980
 """
 
 # 数据转换函数
