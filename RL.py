@@ -59,7 +59,9 @@ class RobotTrajectoryEnv(gym.Env):
         dist_to_goal = np.linalg.norm([new_x, new_y] - self.end_pos)
         prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
 
-        reward = (prev_dist - dist_to_goal) * 2.9  # Reward for getting closer
+        reward = 0
+        reward = -dist_to_goal
+        #reward = (prev_dist - dist_to_goal) * 2.9  # Reward for getting closer
 
     # Penalize large joint angle changes (minimizing θ changes for smoother motion)
         theta_change = np.linalg.norm([
@@ -67,9 +69,9 @@ class RobotTrajectoryEnv(gym.Env):
             new_theta2 - prev_state[5],
             new_theta3 - prev_state[6]
         ])
-        penalty = theta_change * 0.04  # Penalize large theta changes
+        #penalty = theta_change * 0.04  # Penalize large theta changes
         #penalty += dist_to_goal * 2 # I add this, but it may not make sense
-        reward -= penalty  # Weight for smooth motion
+        #reward -= penalty  # Weight for smooth motion
 
     # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
