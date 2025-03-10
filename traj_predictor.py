@@ -31,10 +31,10 @@ def predict_first_point(x,y,model):
 '''
 
 model = LSTMPPOPolicy().to(device)
-model_1 = EnhancedLSTMPPO().to(device)
-env = RobotTrajectoryEnv(model_pred, (3, 0),(0,0,0),(0,3),device,max_steps=30)
+#model_1 = EnhancedLSTMPPO().to(device)
+env = RobotTrajectoryEnv(model_pred, (3, 0),(0,0,0),(2,1),device,max_steps=70)
 print(device)
-trajectories = train_rl(model, env,device=device,num_episodes=400)
+trajectories = train_rl(model, env,device=device,num_episodes=500)
 
 # Print the trajectory for the last episode
 for t, (theta1, theta2, theta3) in enumerate(trajectories[-1]):

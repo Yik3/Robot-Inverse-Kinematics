@@ -23,7 +23,7 @@ class RobotTrajectoryEnv(gym.Env):
         self.current_step = 0
         self.device = device
         # Action space now modifies x, y (small changes)
-        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-0.3, high=0.3, shape=(2,), dtype=np.float32)
 
         # Observation space includes theta1, theta2, theta3 from the start
         self.observation_space = spaces.Box(
@@ -86,7 +86,7 @@ class RobotTrajectoryEnv(gym.Env):
 
 
 class LSTMPPOPolicy(nn.Module):
-    def __init__(self, input_size=7, hidden_size=2048, output_size=2):  # Output is (delta_x, delta_y)
+    def __init__(self, input_size=7, hidden_size=256, output_size=2):  # Output is (delta_x, delta_y)
         super(LSTMPPOPolicy, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output (delta_x, delta_y)
@@ -99,41 +99,9 @@ class LSTMPPOPolicy(nn.Module):
         return action_mean, value, hidden
 
     def init_hidden(self):
-        return (torch.zeros(1, 1, 2048), torch.zeros(1, 1, 2048))
-'''
-# I did not use it RN!!!
-class EnhancedLSTMPPO(nn.Module):
-    def __init__(self, input_size=7, hidden_size=256, num_layers=2):
-        super().__init__()
-        # 双向LSTM捕获双向依赖
-        self.lstm = nn.LSTM(
-            input_size, 
-            hidden_size,
-            num_layers=num_layers,
-            bidirectional=True,
-            dropout=0.2 if num_layers>1 else 0
-        )
-        # 自适应特征融合
-        self.attention = nn.Sequential(
-            nn.Linear(2*hidden_size, 64),
-            nn.Tanh(),
-            nn.Linear(64, 1),
-            nn.Softmax(dim=1)
-        )
-        # 多尺度输出
-        self.actor_head = nn.Linear(2*hidden_size, 2)
-        self.critic_head = nn.Linear(2*hidden_size, 1)
-        
-    def forward(self, x, hidden):
-        lstm_out, hidden = self.lstm(x, hidden)
-        # 时域注意力
-        attn_weights = self.attention(lstm_out)
-        context = torch.sum(attn_weights * lstm_out, dim=1)
-        # 双头输出
-        mean = self.actor_head(context)
-        value = self.critic_head(context)
-        return mean, value, hidden
-def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda"):
+        return (torch.zeros(1, 1, 256), torch.zeros(1, 1, 256))
+
+def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.000005, device="cuda"):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)
     all_trajectories = []
@@ -141,8 +109,8 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
     for episode in range(num_episodes):
         # Initialize hidden state at the start of each episode
         hidden_state = (
-            torch.zeros(1, 1, 2048).to(device),
-            torch.zeros(1, 1, 2048).to(device)
+            torch.zeros(1, 1, 256).to(device),
+            torch.zeros(1, 1, 256).to(device)
         )
         
         # Reset environment and get initial state
@@ -200,7 +168,7 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
         advantages = discounted_rewards - values.detach()
         actor_loss = -(log_probs * advantages).mean()
         critic_loss = F.mse_loss(values, discounted_rewards)
-        loss = actor_loss + 0.5 * critic_loss
+        loss = actor_loss + 0.2 * critic_loss
         
         # Optimize the model
         optimizer.zero_grad()
