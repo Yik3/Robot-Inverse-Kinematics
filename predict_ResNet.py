@@ -17,22 +17,22 @@ if torch.cuda.is_available():
 else:
     device=torch.device("cpu")
 #Use Data Loader to load a batch of Data
-batch_size = 256
+batch_size = 512
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = ResNetFCN(input_size=7, output_size=3, dropout_rate=0.1).to(device)  # Move model to GPU if available
+model = ResNetFCN(input_size=7, output_size=3, dropout_rate=0.15).to(device)  # Move model to GPU if available
 criterion = nn.L1Loss()  # Mean Squared Error (MSE) for regression
 criterion2 = nn.MSELoss()
 L2_factor = 0.05
 optimizer = optim.Adam(model.parameters(), lr=0.00005, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
-num_epochs = 150  # Number of training epochs
+num_epochs = 700  # Number of training epochs
 best_val_loss = float('inf')  # Track best validation loss
-early_stop_patience = 40  # Stop training if no improvement in X epochs
+early_stop_patience = 100  # Stop training if no improvement in X epochs
 early_stop_counter = 0  
 
 # Store training/validation loss for visualization

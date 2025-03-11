@@ -54,7 +54,7 @@ class FCN(nn.Module):
     
 
 class ResNetFCN(nn.Module):
-    def __init__(self, input_size=7, hidden_sizes=[1024, 1024, 512, 512], output_size=3, dropout_rate=0.1):
+    def __init__(self, input_size=7, hidden_sizes=[1024, 2048, 1024, 512], output_size=3, dropout_rate=0.15):
         super(ResNetFCN, self).__init__()
         
         # First Layer (No Skip Connection)

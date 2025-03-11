@@ -120,7 +120,8 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.000005, device="cud
         
         trajectory = []
         # Append initial thetas from reset state
-        initial_thetas = (state_np[4], state_np[5], state_np[6])
+        x0, y0 = state_np[0], state_np[1]
+        initial_thetas = (x0,y0,state_np[4], state_np[5], state_np[6])
         trajectory.append(initial_thetas)
         
         log_probs, rewards, values = [], [], []
@@ -142,15 +143,18 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.000005, device="cud
             new_state_np, reward, done, _ = env.step(action_cpu)
             
             # Append new thetas to trajectory
-            new_theta1, new_theta2, new_theta3 = new_state_np[4], new_state_np[5], new_state_np[6]
-            trajectory.append((new_theta1, new_theta2, new_theta3))
+            x, y = new_state_np[0], new_state_np[1]
+            t1, t2, t3 = new_state_np[4], new_state_np[5], new_state_np[6]
+            trajectory.append((x, y, t1, t2, t3))
+            #new_theta1, new_theta2, new_theta3 = new_state_np[4], new_state_np[5], new_state_np[6]
+            #trajectory.append((new_theta1, new_theta2, new_theta3))
             
             # Prepare next state with correct dimensions
             state = torch.tensor(new_state_np, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
             
             rewards.append(reward)
-
-        all_trajectories.append(trajectory)
+        traj = (reward,trajectory)
+        all_trajectories.append(traj)
 
         # Calculate discounted rewards
         discounted_rewards = []
