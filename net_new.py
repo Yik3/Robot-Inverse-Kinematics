@@ -111,7 +111,7 @@ class ResNetFCN(nn.Module):
         return x
 
 class Transformer(nn.Module):
-    def __init__(self, input_dim=7, output_dim=3, num_heads=4, hidden_dim=128, num_layers=4, dropout=0.2):
+    def __init__(self, input_dim=7, output_dim=3, num_heads=4, hidden_dim=512, num_layers=3, dropout=0.15):
         super(Transformer, self).__init__()
 
         # Learnable Positional Encoding

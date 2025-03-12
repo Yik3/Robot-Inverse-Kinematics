@@ -21,16 +21,16 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 model = Transformer().to(device)  # Move model to GPU if available
-criterion = nn.L1Loss()  # Mean Squared Error (MSE) for regression
+criterion = nn.L1Loss() 
 criterion2 = nn.MSELoss()
 L2_factor = 0.05
-forward_constraint_factor = 0
-optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-5)  # L2 Regularization
+forward_constraint_factor = 0.8
+optimizer = optim.AdamW(model.parameters(), lr=0.00007, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
 num_epochs = 700  # Number of training epochs
 best_val_loss = float('inf')  # Track best validation loss
-early_stop_patience = 100  # Stop training if no improvement in X epochs
+early_stop_patience = 80  # Stop training if no improvement in X epochs
 early_stop_counter = 0  
 
 # Store training/validation loss for visualization
@@ -106,7 +106,7 @@ plt.plot(range(1, len(train_losses) + 1), train_losses, label="Training Loss", m
 plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss", marker='s')
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.title("ResNet Training & Validation Loss vs. Epochs")
+plt.title("Transformer Training & Validation Loss vs. Epochs")
 plt.legend()
 plt.grid()
 plt.show()
