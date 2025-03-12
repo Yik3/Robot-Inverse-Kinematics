@@ -7,7 +7,7 @@ Written by Yike Shi on 03/01/2025
 '''
 import torch
 import torch.nn as nn
-
+import numpy as np
 
 class FCN(nn.Module):
     def __init__(self, input_size=7, hidden_sizes=[1024, 2048, 1024, 512], output_size=3, dropout_rate=0.2):
@@ -109,3 +109,49 @@ class ResNetFCN(nn.Module):
         x = self.tanh(x)
 
         return x
+
+class Transformer(nn.Module):
+    def __init__(self, input_dim=7, output_dim=3, num_heads=4, hidden_dim=128, num_layers=4, dropout=0.2):
+        super(Transformer, self).__init__()
+
+        # Learnable Positional Encoding
+        self.pos_embedding = nn.Parameter(torch.randn(1, 1, hidden_dim))
+
+        # Linear Projection of Input Features
+        self.input_proj = nn.Linear(input_dim, hidden_dim)
+
+        # Transformer Encoder Layer
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_dim,
+            nhead=num_heads,
+            dim_feedforward=hidden_dim * 4,  # More capacity
+            dropout=dropout,
+            activation="gelu",  # Better than ReLU in Transformers
+            batch_first=True  # Ensures correct shape (B, Seq, Features)
+        )
+
+        # Transformer Encoder
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Final MLP Regression Head
+        self.mlp_head = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, output_dim)
+        )
+
+    def forward(self, x):
+        # Input Projection
+        x = self.input_proj(x).unsqueeze(1)  # Add sequence dimension
+
+        # Add Positional Encoding
+        x = x + self.pos_embedding
+
+        # Transformer Encoder
+        x = self.transformer_encoder(x)
+
+        # Remove sequence dimension & pass through MLP head
+        x = x.squeeze(1)
+        return self.mlp_head(x)

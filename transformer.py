@@ -1,7 +1,3 @@
-'''
-Predicting Angles of different joints of a Robot Arm
-'''
-
 from process_data import *
 from net_new import *
 import torch
@@ -11,6 +7,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 train_dataset, val_dataset, test_dataset = load_2d_data()
+
 if torch.cuda.is_available():
     device=torch.device("cuda")
     print("CUDA Activated!")
@@ -23,12 +20,12 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = ResNetFCN(input_size=7, output_size=3, dropout_rate=0.15).to(device)  # Move model to GPU if available
+model = Transformer().to(device)  # Move model to GPU if available
 criterion = nn.L1Loss()  # Mean Squared Error (MSE) for regression
 criterion2 = nn.MSELoss()
 L2_factor = 0.05
-forward_constraint_factor = 0.75
-optimizer = optim.Adam(model.parameters(), lr=0.00005, weight_decay=1e-5)  # L2 Regularization
+forward_constraint_factor = 0
+optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
 num_epochs = 700  # Number of training epochs
@@ -95,7 +92,7 @@ for epoch in range(num_epochs):
     if avg_val_loss < best_val_loss:
         best_val_loss = avg_val_loss
         early_stop_counter = 0  # Reset counter
-        torch.save(model.state_dict(), "best_res_model.pth")  # Save best model
+        torch.save(model.state_dict(), "best_trans_model.pth")  # Save best model
     else:
         early_stop_counter += 1
         if early_stop_counter >= early_stop_patience:
@@ -114,7 +111,7 @@ plt.legend()
 plt.grid()
 plt.show()
 
-model.load_state_dict(torch.load("best_res_model.pth"))
+model.load_state_dict(torch.load("best_trans_model.pth"))
 model.eval()  # Set model to evaluation mode (Dropout OFF)
 
 test_loss = 0.0
