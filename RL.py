@@ -6,6 +6,7 @@ import numpy as np
 from gymnasium import spaces
 import torch.nn.functional as F
 import torch.distributions as distributions
+from dataset_generator import FK
 
 '''
 RL set up
@@ -54,13 +55,14 @@ class RobotTrajectoryEnv(gym.Env):
     
     # Ensure predictor model is on CUDA
         new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().cpu().numpy().squeeze()
+        new_thetas = np.array([new_theta1, new_theta2, new_theta3])
+    # calculate FK for the 3 thetas created to find the real new_x and new_y
+        new_x, new_y = FK(np.array([1, 1, 1]), new_thetas)
 
     # Compute reward
         dist_to_goal = np.linalg.norm([new_x, new_y] - self.end_pos)
         prev_dist = np.linalg.norm([prev_state[0], prev_state[1]] - self.end_pos)
 
-        reward = 0
-        reward = -dist_to_goal
         #reward = (prev_dist - dist_to_goal) * 2.9  # Reward for getting closer
 
     # Penalize large joint angle changes (minimizing θ changes for smoother motion)
@@ -69,9 +71,12 @@ class RobotTrajectoryEnv(gym.Env):
             new_theta2 - prev_state[5],
             new_theta3 - prev_state[6]
         ])
-        #penalty = theta_change * 0.04  # Penalize large theta changes
-        #penalty += dist_to_goal * 2 # I add this, but it may not make sense
-        #reward -= penalty  # Weight for smooth motion
+        reward = (prev_dist - dist_to_goal) * 10  # Distance improvement
+        reward -= theta_change * 0.1  # Smooth motion
+        reward -= 0.01  # Time penalty
+        if dist_to_goal < 0.01:
+            reward += 100  # Success bonus
+    
 
     # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
