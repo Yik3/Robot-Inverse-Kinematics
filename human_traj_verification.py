@@ -66,10 +66,13 @@ def joint_traj(trajectory,startangles,device,model):
     return joint_traj
 
 def check_out_traj(x,y,t1,t2,t3):
+    t1 = np.deg2rad(t1 * 180)
+    t2 = np.deg2rad(t2 * 180)
+    t3 = np.deg2rad(t3 * 180)
     x_f = np.cos(t1) + np.cos(t2) + np.cos(t3)
     y_f = np.sin(t1) + np.sin(t2) + np.sin(t3)
     dis = (x_f -x)**2 + (y-y_f)**2
-    if dis < 0.05:
+    if dis < 0.1:
         return True
     return False
 
