@@ -22,9 +22,9 @@ else:
     device=torch.device("cpu")
 
     
-model = Transformer().to(device)
-
-model.load_state_dict(torch.load("best_trans_model.pth"))
+#model = Transformer().to(device)
+model = ResNetFCN().to(device)
+model.load_state_dict(torch.load("best_res_model.pth"))
 model.eval()
 
 import numpy as np
@@ -67,16 +67,19 @@ def joint_traj(trajectory,startangles,device,model):
     return joint_traj
 
 def check_out_traj(x,y,t1,t2,t3):
+    t1 = np.deg2rad(t1 * 180)
+    t2 = np.deg2rad(t2 * 180)
+    t3 = np.deg2rad(t3 * 180)
     x_f = np.cos(t1) + np.cos(t2) + np.cos(t3)
     y_f = np.sin(t1) + np.sin(t2) + np.sin(t3)
     dis = (x_f -x)**2 + (y-y_f)**2
-    if dis < 0.15:
+    if dis < 0.1:
         return True
     return False
 
 start_points = [(3, 0)]
-end_point = (0,-3)
-test_time = 100
+#end_point = (0,-3)
+test_time = 200
 
 samples = [10,15,20,30]
 avep = []
@@ -86,9 +89,12 @@ for start_point in start_points:
         for sample in samples:
             path = human_gen_traj(start_point, end_point, sample)
             trajectories = joint_traj(path,(0,0,0),device,model)
+            count = 0
             for t, (x,y,theta1, theta2, theta3) in enumerate(trajectories):
-                if not check_out_traj(x,y,theta1,theta2,theta3):\
-                    avep.append(t/len(trajectories))
+                if check_out_traj(x,y,theta1,theta2,theta3):
+                    #avep.append(t/len(trajectories))
+                    count += 1
+            avep.append(count/len(trajectories))
 
 avep = np.array(avep)
 performance = np.mean(avep)
