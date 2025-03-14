@@ -113,6 +113,7 @@ plt.show()
 
 model.load_state_dict(torch.load("best_trans_model.pth"))
 model.eval()  # Set model to evaluation mode (Dropout OFF)
+print("model loaded!")
 
 test_loss = 0.0
 mae_loss = nn.L1Loss()  # Mean Absolute Error (MAE) as accuracy metric
