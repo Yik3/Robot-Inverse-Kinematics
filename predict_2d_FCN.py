@@ -30,9 +30,9 @@ L2_factor = 0
 optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
-num_epochs = 100  # Number of training epochs
+num_epochs = 700  # Number of training epochs
 best_val_loss = float('inf')  # Track best validation loss
-early_stop_patience = 20  # Stop training if no improvement in X epochs
+early_stop_patience = 100  # Stop training if no improvement in X epochs
 early_stop_counter = 0  
 
 # Store training/validation loss for visualization

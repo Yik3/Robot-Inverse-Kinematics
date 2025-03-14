@@ -24,7 +24,7 @@ class RobotTrajectoryEnv(gym.Env):
         self.current_step = 0
         self.device = device
         # Action space now modifies x, y (small changes)
-        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-0.3, high=0.3, shape=(2,), dtype=np.float32)
 
         # Observation space includes theta1, theta2, theta3 from the start
         self.observation_space = spaces.Box(
@@ -51,8 +51,8 @@ class RobotTrajectoryEnv(gym.Env):
         new_y = np.clip(prev_state[1] + action[1], -3, 3)
 
     # Move input tensor to the same device as predictor_model
-        input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0).to(self.device)
-    
+        #input_tensor = torch.tensor([new_x, new_y, prev_state[0], prev_state[1], prev_state[4], prev_state[5], prev_state[6]], dtype=torch.float32).unsqueeze(0).to(self.device)
+        input_tensor = torch.tensor([new_x, new_y], dtype=torch.float32).unsqueeze(0).to(self.device)
     # Ensure predictor model is on CUDA
         new_theta1, new_theta2, new_theta3 = self.predictor_model(input_tensor).detach().cpu().numpy().squeeze()
         new_thetas = np.array([new_theta1, new_theta2, new_theta3])
@@ -71,9 +71,10 @@ class RobotTrajectoryEnv(gym.Env):
             new_theta2 - prev_state[5],
             new_theta3 - prev_state[6]
         ])
-        reward = (prev_dist - dist_to_goal) * 10  # Distance improvement
-        reward -= theta_change * 0.1  # Smooth motion
-        reward -= 0.01  # Time penalty
+        reward = -dist_to_goal
+        #reward = (prev_dist - dist_to_goal) * 10  # Distance improvement
+        #reward -= theta_change * 0.1  # Smooth motion
+        #reward -= 0.01  # Time penalty
         if dist_to_goal < 0.01:
             reward += 100  # Success bonus
     
@@ -81,7 +82,7 @@ class RobotTrajectoryEnv(gym.Env):
     # Update state
         self.state = np.array([new_x, new_y, prev_state[0], prev_state[1], new_theta1, new_theta2, new_theta3])
 
-        done = (dist_to_goal < 0.01) or (self.current_step >= self.max_steps)  # Stop when reaching goal
+        done = (dist_to_goal < 0.05) or (self.current_step >= self.max_steps)  # Stop when reaching goal
 
         return self.state, reward, done, {}
 
@@ -91,7 +92,7 @@ class RobotTrajectoryEnv(gym.Env):
 
 
 class LSTMPPOPolicy(nn.Module):
-    def __init__(self, input_size=7, hidden_size=2048, output_size=2):  # Output is (delta_x, delta_y)
+    def __init__(self, input_size=7, hidden_size=256, output_size=2):  # Output is (delta_x, delta_y)
         super(LSTMPPOPolicy, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.fc_actor = nn.Linear(hidden_size, output_size)  # Action output (delta_x, delta_y)
@@ -104,42 +105,9 @@ class LSTMPPOPolicy(nn.Module):
         return action_mean, value, hidden
 
     def init_hidden(self):
-        return (torch.zeros(1, 1, 2048), torch.zeros(1, 1, 2048))
+        return (torch.zeros(1, 1, 256), torch.zeros(1, 1, 256))
 
-# I did not use it RN!!!
-class EnhancedLSTMPPO(nn.Module):
-    def __init__(self, input_size=7, hidden_size=256, num_layers=2):
-        super().__init__()
-        # 双向LSTM捕获双向依赖
-        self.lstm = nn.LSTM(
-            input_size, 
-            hidden_size,
-            num_layers=num_layers,
-            bidirectional=True,
-            dropout=0.2 if num_layers>1 else 0
-        )
-        # 自适应特征融合
-        self.attention = nn.Sequential(
-            nn.Linear(2*hidden_size, 64),
-            nn.Tanh(),
-            nn.Linear(64, 1),
-            nn.Softmax(dim=1)
-        )
-        # 多尺度输出
-        self.actor_head = nn.Linear(2*hidden_size, 2)
-        self.critic_head = nn.Linear(2*hidden_size, 1)
-        
-    def forward(self, x, hidden):
-        lstm_out, hidden = self.lstm(x, hidden)
-        # 时域注意力
-        attn_weights = self.attention(lstm_out)
-        context = torch.sum(attn_weights * lstm_out, dim=1)
-        # 双头输出
-        mean = self.actor_head(context)
-        value = self.critic_head(context)
-        return mean, value, hidden
-
-def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda"):
+def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.000005, device="cuda"):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)
     all_trajectories = []
@@ -147,8 +115,8 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
     for episode in range(num_episodes):
         # Initialize hidden state at the start of each episode
         hidden_state = (
-            torch.zeros(1, 1, 2048).to(device),
-            torch.zeros(1, 1, 2048).to(device)
+            torch.zeros(1, 1, 256).to(device),
+            torch.zeros(1, 1, 256).to(device)
         )
         
         # Reset environment and get initial state
@@ -158,7 +126,8 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
         
         trajectory = []
         # Append initial thetas from reset state
-        initial_thetas = (state_np[4], state_np[5], state_np[6])
+        x0, y0 = state_np[0], state_np[1]
+        initial_thetas = (x0,y0,state_np[4], state_np[5], state_np[6])
         trajectory.append(initial_thetas)
         
         log_probs, rewards, values = [], [], []
@@ -180,15 +149,18 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
             new_state_np, reward, done, _ = env.step(action_cpu)
             
             # Append new thetas to trajectory
-            new_theta1, new_theta2, new_theta3 = new_state_np[4], new_state_np[5], new_state_np[6]
-            trajectory.append((new_theta1, new_theta2, new_theta3))
+            x, y = new_state_np[0], new_state_np[1]
+            t1, t2, t3 = new_state_np[4], new_state_np[5], new_state_np[6]
+            trajectory.append((x, y, t1, t2, t3))
+            #new_theta1, new_theta2, new_theta3 = new_state_np[4], new_state_np[5], new_state_np[6]
+            #trajectory.append((new_theta1, new_theta2, new_theta3))
             
             # Prepare next state with correct dimensions
             state = torch.tensor(new_state_np, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
             
             rewards.append(reward)
-
-        all_trajectories.append(trajectory)
+        traj = (reward,trajectory)
+        all_trajectories.append(traj)
 
         # Calculate discounted rewards
         discounted_rewards = []
@@ -206,7 +178,7 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.00005, device="cuda
         advantages = discounted_rewards - values.detach()
         actor_loss = -(log_probs * advantages).mean()
         critic_loss = F.mse_loss(values, discounted_rewards)
-        loss = actor_loss + 0.5 * critic_loss
+        loss = actor_loss + 0.2 * critic_loss
         
         # Optimize the model
         optimizer.zero_grad()

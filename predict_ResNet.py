@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-
+import torch.nn.functional as F
 train_dataset, val_dataset, test_dataset = load_2d_data()
 if torch.cuda.is_available():
     device=torch.device("cuda")
@@ -17,28 +17,29 @@ if torch.cuda.is_available():
 else:
     device=torch.device("cpu")
 #Use Data Loader to load a batch of Data
-batch_size = 256
+batch_size = 512
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = ResNetFCN(input_size=7, output_size=3, dropout_rate=0.1).to(device)  # Move model to GPU if available
+model = ResNetFCN(input_size=7, output_size=3, dropout_rate=0.15).to(device)  # Move model to GPU if available
 criterion = nn.L1Loss()  # Mean Squared Error (MSE) for regression
 criterion2 = nn.MSELoss()
 L2_factor = 0.05
+forward_constraint_factor = 0.75
 optimizer = optim.Adam(model.parameters(), lr=0.00005, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
-num_epochs = 150  # Number of training epochs
+num_epochs = 700  # Number of training epochs
 best_val_loss = float('inf')  # Track best validation loss
-early_stop_patience = 40  # Stop training if no improvement in X epochs
+early_stop_patience = 100  # Stop training if no improvement in X epochs
 early_stop_counter = 0  
 
 # Store training/validation loss for visualization
 train_losses = []
 val_losses = []
-
+yes = 1
 for epoch in range(num_epochs):
     ### === Training Phase === ###
     model.train()  # Set model to training mode (Dropout ON)
@@ -48,7 +49,24 @@ for epoch in range(num_epochs):
 
         optimizer.zero_grad()  # Clear previous gradients
         output = model(xyz_batch)  # Forward pass
-        loss = (1-L2_factor)*criterion(output, joint_batch) + L2_factor*criterion2(output, joint_batch)  # Compute loss
+        xyz_0_1 = xyz_batch[:, :2]  # First two columns of xyz
+        if yes:
+            print(xyz_0_1.shape)
+            #yes = 0
+
+# Compute the sum of cosines and sines along dim=1 (column-wise sum)
+        output_r = output.clone()
+        output_r = torch.deg2rad(output_r*180.0)
+        x = torch.cos(output_r).sum(dim=1)  
+        y = torch.sin(output_r).sum(dim=1)  
+        if yes:
+            print(x.shape)
+            yes = 0
+
+# Compute L2 loss (MSE loss) with corresponding xyz columns
+        loss_cos = F.mse_loss(x, xyz_0_1[:, 0])  # Compare with first column of xyz
+        loss_sin = F.mse_loss(y, xyz_0_1[:, 1])  # Compare with second column of xyz
+        loss = (1-L2_factor)*criterion(output, joint_batch) + L2_factor*criterion2(output, joint_batch) + (loss_cos + loss_sin)*forward_constraint_factor
         loss.backward()  # Backpropagation
         optimizer.step()  # Update weights
 
