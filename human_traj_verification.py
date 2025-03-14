@@ -4,6 +4,17 @@ import torch.nn as nn
 from traj_vis import *
 from matplotlib import pyplot as plt
 
+import random
+
+def random_point_in_circle():
+    while True:
+        # Generate x and y uniformly between -3 and 3
+        x = random.uniform(-3, 3)
+        y = random.uniform(-3, 3)
+        # Check if the point is inside the circle of radius 3
+        if x**2 + y**2 < 9:
+            return (x, y)
+        
 if torch.cuda.is_available():
     device=torch.device("cuda")
     print("CUDA Activated!")
@@ -31,12 +42,6 @@ def human_gen_traj(start, end, sample):
 
     return [(x, y) for x, y in zip(x_vals, y_vals)]
 
-start_point = (3, 0)
-end_point = (0,-3)
-samples = 15
-path = human_gen_traj(start_point, end_point, samples)
-#print(trajectory)
-
 def joint_traj(trajectory,startangles,device,model):
     joint_traj = []
     start = trajectory[0]
@@ -60,7 +65,40 @@ def joint_traj(trajectory,startangles,device,model):
         ptheta3 = new_theta3
     return joint_traj
 
-trajectories = joint_traj(path,(0,0,0),device,model)
+def check_out_traj(x,y,t1,t2,t3):
+    x_f = np.cos(t1) + np.cos(t2) + np.cos(t3)
+    y_f = np.sin(t1) + np.sin(t2) + np.sin(t3)
+    dis = (x_f -x)**2 + (y-y_f)**2
+    if dis < 0.15:
+        return True
+    return False
+
+start_points = [(3, 0)]
+end_point = (0,-3)
+test_time = 100
+
+samples = [10,15,20,30]
+avep = []
+for start_point in start_points:
+    for i in range(test_time):
+        end_point = random_point_in_circle()
+        for sample in samples:
+            path = human_gen_traj(start_point, end_point, sample)
+            trajectories = joint_traj(path,(0,0,0),device,model)
+            for t, (x,y,theta1, theta2, theta3) in enumerate(trajectories):
+                if not check_out_traj(x,y,theta1,theta2,theta3):\
+                    avep.append(t/len(trajectories))
+
+avep = np.array(avep)
+performance = np.mean(avep)
+
+print(performance)
+                
+#print(trajectory)
+
+
+
+'''
 outstr = ""
 for t, (x,y,theta1, theta2, theta3) in enumerate(trajectories):
     print(f"Step {t}: Theta1={theta1:.3f}, Theta2={theta2:.3f}, Theta3={theta3:.3f}, at x={x}, y ={y}")
@@ -128,3 +166,4 @@ vis = ArmVisualizer(
 #plt.show()
 
 vis.create_animation(interval=300, save_path="test.gif")
+'''
