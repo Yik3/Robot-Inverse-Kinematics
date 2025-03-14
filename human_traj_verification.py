@@ -20,6 +20,7 @@ if torch.cuda.is_available():
     print("CUDA Activated!")
 else:
     device=torch.device("cpu")
+
     
 model = Transformer().to(device)
 
