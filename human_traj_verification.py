@@ -32,7 +32,7 @@ def human_gen_traj(start, end, sample):
     return [(x, y) for x, y in zip(x_vals, y_vals)]
 
 start_point = (3, 0)
-end_point = (2,-2)
+end_point = (0,-3)
 samples = 15
 path = human_gen_traj(start_point, end_point, samples)
 #print(trajectory)

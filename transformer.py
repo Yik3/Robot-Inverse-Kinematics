@@ -24,11 +24,11 @@ model = Transformer().to(device)  # Move model to GPU if available
 criterion = nn.L1Loss() 
 criterion2 = nn.MSELoss()
 L2_factor = 0.05
-forward_constraint_factor = 0.8
+forward_constraint_factor = 15.8
 optimizer = optim.AdamW(model.parameters(), lr=0.00007, weight_decay=1e-5)  # L2 Regularization
 
 # Training settings
-num_epochs = 700  # Number of training epochs
+num_epochs = 400  # Number of training epochs
 best_val_loss = float('inf')  # Track best validation loss
 early_stop_patience = 80  # Stop training if no improvement in X epochs
 early_stop_counter = 0  
