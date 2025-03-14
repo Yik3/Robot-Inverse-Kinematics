@@ -143,14 +143,12 @@ def parse_angle_data(data_string):
     return angle_sequence, xy_sequence
 
 
-# 执行转换
 theta_sequence,xy_sequence = parse_angle_data(outstr)
 #print(xy_sequence)
 print(theta_sequence[-1],xy_sequence[-1])
 
 test_angles = theta_sequence
     
-    # 初始化可视化工具（使用绝对角度模式）
 vis = ArmVisualizer(
         arm_lengths=(1, 1, 1),
         angles_sequence=test_angles,
@@ -158,11 +156,10 @@ vis = ArmVisualizer(
         xy_sequence=xy_sequence
     )
     
-    # 绘制关键帧
-#vis.plot_configuration(0)  # 第一帧
+#vis.plot_configuration(0)  
 #plt.show()
     
-#vis.plot_configuration(-1) # 最后一帧
+#vis.plot_configuration(-1) 
 #plt.show()
 
 vis.create_animation(interval=300, save_path="test.gif")

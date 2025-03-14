@@ -185,11 +185,11 @@ def train_rl(model, env, num_episodes=1000, gamma=0.99, lr=0.000005, device="cud
     return all_trajectories
 
 def generate_trajectory(
-    lstm_policy,  # 训练好的LSTM策略网络
-    predictor_model,  # 你的ResNetFCN预测模型
-    start_pos,  # 初始位置 (x, y)
-    start_thetas,  # 初始关节角度 (theta1, theta2, theta3)
-    end_pos,  # 目标位置 (x, y)
+    lstm_policy, 
+    predictor_model,  
+    start_pos,  
+    start_thetas,  
+    end_pos,  
     device,
     max_steps=100
 ):
@@ -203,37 +203,30 @@ def generate_trajectory(
         max_steps=max_steps
     )
     
-    # 初始化LSTM隐藏状态
     hidden_state = (
         torch.zeros(1, 1, 128).to(device),
         torch.zeros(1, 1, 128).to(device)
     )
     
     state = env.reset()
-    trajectory = [start_thetas]  # 初始角度
-    
-    # 转换为张量并添加batch和sequence维度
+    trajectory = [start_thetas] 
+
     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
     
     done = False
     step = 0
     
-    with torch.no_grad():  # 禁用梯度计算
+    with torch.no_grad(): 
         while not done and step < max_steps:
-            # 通过LSTM策略生成动作
             action_mean, _, hidden_state = lstm_policy(state_tensor, hidden_state)
             
-            # 从正态分布采样动作（测试时可以直接使用均值）
             action = action_mean.squeeze().cpu().numpy()
             
-            # 执行动作
             new_state, _, done, _ = env.step(action)
             
-            # 记录新的关节角度
             new_thetas = (new_state[4], new_state[5], new_state[6])
             trajectory.append(new_thetas)
             
-            # 更新状态张量
             state_tensor = torch.tensor(new_state, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
             
             step += 1
