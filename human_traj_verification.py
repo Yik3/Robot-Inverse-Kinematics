@@ -69,7 +69,7 @@ def check_out_traj(x,y,t1,t2,t3):
     x_f = np.cos(t1) + np.cos(t2) + np.cos(t3)
     y_f = np.sin(t1) + np.sin(t2) + np.sin(t3)
     dis = (x_f -x)**2 + (y-y_f)**2
-    if dis < 0.1:
+    if dis < 0.05:
         return True
     return False
 
@@ -85,9 +85,12 @@ for start_point in start_points:
         for sample in samples:
             path = human_gen_traj(start_point, end_point, sample)
             trajectories = joint_traj(path,(0,0,0),device,model)
+            count = 0
             for t, (x,y,theta1, theta2, theta3) in enumerate(trajectories):
-                if not check_out_traj(x,y,theta1,theta2,theta3):
-                    avep.append(t/len(trajectories))
+                if check_out_traj(x,y,theta1,theta2,theta3):
+                    #avep.append(t/len(trajectories))
+                    count += 1
+            avep.append(count/len(trajectories))
 
 avep = np.array(avep)
 performance = np.mean(avep)
