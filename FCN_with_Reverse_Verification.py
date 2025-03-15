@@ -54,7 +54,7 @@ for epoch in range(num_epochs):
         output = model(xyz_batch)  # Forward pass
         predict_xyz = model_fwd(output)
         loss = penalty_factor*(0.5*criterion2(predict_xyz, xyz_batch)+0.5*criterion(predict_xyz, xyz_batch))
-        loss += (1-L2_factor)*criterion(output, joint_batch) + L2_factor*criterion2(output, joint_batch)  # Compute loss
+        loss += (1-L2_factor)*criterion(output, joint_batch) + L2_factor*criterion2(output, joint_batch) 
         loss.backward()  # Backpropagation
         optimizer.step()  # Update weights
 
@@ -64,7 +64,7 @@ for epoch in range(num_epochs):
     train_losses.append(avg_train_loss)
 
     ### === Validation Phase === ###
-    model.eval()  # Set model to evaluation mode (Dropout OFF)
+    model.eval()  
     val_loss = 0.0
     with torch.no_grad():  # No need to compute gradients during validation
         for xyz_batch, joint_batch in val_loader:
@@ -105,7 +105,7 @@ plt.grid()
 plt.show()
 
 model.load_state_dict(torch.load("best_model.pth"))
-model.eval()  # Set model to evaluation mode (Dropout OFF)
+model.eval()  
 
 test_loss = 0.0
 mae_loss = nn.L1Loss()  # Mean Absolute Error (MAE) as accuracy metric

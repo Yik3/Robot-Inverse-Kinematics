@@ -23,7 +23,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = FCN(input_size=4, output_size=3, dropout_rate=0.3).to(device)  # Move model to GPU if available
+model = FCN(input_size=7, output_size=3, dropout_rate=0.3).to(device)  # Move model to GPU if available
 criterion = nn.L1Loss()  # Mean Squared Error (MSE) for regression
 criterion2 = nn.MSELoss()
 L2_factor = 0
