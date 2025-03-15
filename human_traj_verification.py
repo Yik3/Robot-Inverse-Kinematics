@@ -118,29 +118,21 @@ def parse_angle_data(data_string):
     lines = [line.strip() for line in data_string.split('\n') if line.strip()]
 
     for line in lines:
-        # Split line to get "Theta1=..., Theta2=..., Theta3=..., at x=..., y=..."
-        # Example line: "Step 0: Theta1=0.000, Theta2=0.000, Theta3=0.000, at x=3, y=0"
 
-        # 1) Remove the "Step X:" part
         step_info, values_part = line.split(": ", 1)
 
-        # 2) Split the angle part from the 'at x,y' part
+
         angles_part, xy_part = values_part.split(", at")
 
-        # ---- Parse the angles (convert to degrees) ----
-        # angles_part like "Theta1=0.000, Theta2=0.000, Theta3=0.000"
+
         theta_strs = angles_part.split(", ")
-        # Each t_str is e.g. "Theta1=0.000"
+
         angles = []
         for t_str in theta_strs:
             val = float(t_str.split("=")[1]) * 180.0  # Convert to degrees
             angles.append(val)
         angle_sequence.append(tuple(angles))  # (theta1_deg, theta2_deg, theta3_deg)
 
-        # ---- Parse the x,y part ----
-        # xy_part like " x=3, y=0"
-        # remove leading " x=" or split by commas
-        # e.g. after strip: "x=3, y=0"
         xy_str = xy_part.strip().split(",")
         # xy_str[0] = "x=3", xy_str[1] = " y=0"
         x_val = float(xy_str[0].split("=")[1])
@@ -162,12 +154,15 @@ vis = ArmVisualizer(
         angle_mode='absolute',
         xy_sequence=xy_sequence
     )
+<<<<<<< Updated upstream
     
 #vis.plot_configuration(0)  
 #plt.show()
     
 #vis.plot_configuration(-1) 
 #plt.show()
+=======
+>>>>>>> Stashed changes
 
 vis.create_animation(interval=300, save_path="test.gif")
 '''

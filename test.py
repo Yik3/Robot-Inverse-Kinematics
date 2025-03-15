@@ -80,11 +80,10 @@ vis = ArmVisualizer(
     )
     
     # 绘制关键帧
-vis.plot_configuration(0)  # 第一帧
+vis.plot_configuration(0)
 plt.show()
     
-#vis.plot_configuration(-1) # 最后一帧
+#vis.plot_configuration(-1) 
 #plt.show()
-    
-    # 生成动画（实时预览）
+
 vis.create_animation(interval=300, save_path="absolute_angle_arm.gif")
